@@ -40,7 +40,7 @@ test('Regresiones DentistSystem', async () => {
       await page.goto(`${BASE}/patients`);
       await page.waitForLoadState('networkidle');
       await expect(page).toHaveURL(/patient/);
-      await expect(page.locator('main').first()).toBeVisible({ timeout: 10000 });
+      await expect(page.getByText(/pacientes/i).first()).toBeVisible({ timeout: 10000 });
     });
 
     await test.step('TC-03: Buscar paciente por nombre', async () => {
@@ -120,7 +120,51 @@ test('Regresiones DentistSystem', async () => {
       await expect(page.locator('nav, [class*="menu"], [class*="sidebar"], [class*="hamburger"]').first()).toBeVisible({ timeout: 10000 });
     });
 
-    // ── BLOQUE 6: Cierre de sesion (siempre al final) ────
+    // ── BLOQUE 6: Creación de datos ──────────────────────
+    await test.step('TC-16: Crear nuevo paciente con datos de prueba', async () => {
+      await page.setViewportSize({ width: 1280, height: 720 });
+      await page.goto(`${BASE}/patients`);
+      await page.getByRole('button', { name: /nuevo paciente/i }).click();
+      await expect(page.getByRole('heading', { name: 'Nuevo Paciente' })).toBeVisible({ timeout: 8000 });
+
+      const cedula = `9${Date.now().toString().slice(-7)}`;
+
+      const dialog = page.locator('[role="dialog"]');
+
+      await dialog.getByRole('textbox', { name: 'Nombre' }).fill('Test');
+      await dialog.getByRole('textbox', { name: 'Apellido' }).fill('Playwright');
+      await dialog.getByLabel('Fecha de nacimiento').fill('1990-01-01');
+
+      // Género dropdown
+      await dialog.locator('button[role="combobox"]').nth(0).click();
+      await page.getByRole('option').first().click();
+
+      await dialog.getByRole('textbox', { name: 'Cédula' }).fill(cedula);
+
+      // Fuente de captación dropdown
+      await dialog.locator('button[role="combobox"]').nth(1).click();
+      await page.getByRole('option').first().click();
+
+      await dialog.getByRole('textbox', { name: 'Teléfono', exact: true }).fill('4121234567');
+
+      await page.getByRole('button', { name: 'Registrar Paciente' }).click();
+      await expect(page.locator('[role="dialog"]')).not.toBeVisible({ timeout: 15000 });
+    });
+
+    await test.step('TC-17: Modulo Presupuestos carga correctamente', async () => {
+      await page.goto(`${BASE}/budgets`);
+      await page.waitForLoadState('networkidle');
+      await expect(page).toHaveURL(/budgets/);
+      await expect(page.getByRole('heading', { name: 'Presupuestos de Tratamiento' })).toBeVisible({ timeout: 10000 });
+    });
+
+    await test.step('TC-18: Formulario Nuevo Presupuesto abre', async () => {
+      await page.getByRole('button', { name: /nuevo presupuesto/i }).click();
+      await expect(page.getByRole('heading', { name: 'Nuevo Presupuesto de Tratamiento' })).toBeVisible({ timeout: 8000 });
+      await page.getByRole('button', { name: 'Cancelar' }).click();
+    });
+
+    // ── BLOQUE 7: Cierre de sesion (siempre al final) ────
     await test.step('TC-15: Cerrar sesion redirige al login', async () => {
       await page.setViewportSize({ width: 1280, height: 720 });
       await page.goto(`${BASE}/dashboard`);

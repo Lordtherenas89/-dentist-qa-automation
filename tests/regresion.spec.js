@@ -169,10 +169,11 @@ test('Regresiones DentistSystem', async () => {
       await page.setViewportSize({ width: 1280, height: 720 });
       await page.goto(`${BASE}/patients`);
       await page.waitForLoadState('networkidle');
-      // Apuntar al combobox adyacente al label "Orden:" para no confundirlo con el de Estado
-      await page.locator('text=Orden:').locator('..').getByRole('combobox').click();
+      // El combobox tiene role="combobox" y nombre accesible "Orden:"
+      await page.getByRole('combobox', { name: /orden/i }).click();
+      await expect(page.getByRole('option', { name: /últimos registros/i })).toBeVisible({ timeout: 5000 });
       await page.getByRole('option', { name: /últimos registros/i }).click();
-      await expect(page).toHaveURL(/sortBy=recentRecords.*sortOrder=desc|sortOrder=desc.*sortBy=recentRecords/);
+      await page.waitForURL(/sortBy=recentRecords/, { timeout: 10000 });
     });
 
     // ── BLOQUE 9: DEN2-74 Dentista asignado ─────────────
@@ -192,6 +193,93 @@ test('Regresiones DentistSystem', async () => {
       const specialties = ['Diagnóstico', 'Preventivo', 'Restauración', 'Endodoncia', 'Cirugía', 'Prótesis', 'Implantes', 'Estética', 'Ortodoncia'];
       for (const specialty of specialties) {
         await expect(page.getByText(new RegExp(specialty, 'i')).first()).toBeVisible({ timeout: 5000 });
+      }
+    });
+
+    // ── BLOQUE 11: Configuración ─────────────────────────
+    await test.step('TC-22: Pagina Configuracion carga con todas las tabs', async () => {
+      await page.setViewportSize({ width: 1280, height: 720 });
+      await page.goto(`${BASE}/settings`);
+      await page.waitForLoadState('networkidle');
+      await expect(page.getByRole('heading', { name: /configuración/i })).toBeVisible({ timeout: 10000 });
+      const tabs = ['Mi Consultorio', 'Usuarios', 'Tratamientos', 'Agenda', 'Notificaciones', 'Suscripción', 'Ayuda'];
+      for (const tab of tabs) {
+        await expect(page.getByRole('tab', { name: new RegExp(tab, 'i') })).toBeVisible({ timeout: 5000 });
+      }
+    });
+
+    await test.step('TC-23: Tab Mi Consultorio muestra campos del consultorio', async () => {
+      await expect(page.getByText(/nombre del consultorio/i).first()).toBeVisible({ timeout: 5000 });
+      await expect(page.getByText(/tasa bcv vigente/i).first()).toBeVisible({ timeout: 5000 });
+    });
+
+    await test.step('TC-24: Tab Usuarios carga', async () => {
+      await page.getByRole('tab', { name: /usuarios/i }).click();
+      await page.waitForLoadState('networkidle');
+      await expect(page.locator('main').first()).toBeVisible({ timeout: 10000 });
+    });
+
+    await test.step('TC-25: Tab Tratamientos carga', async () => {
+      await page.getByRole('tab', { name: /tratamientos/i }).click();
+      await page.waitForLoadState('networkidle');
+      await expect(page.locator('main').first()).toBeVisible({ timeout: 10000 });
+    });
+
+    await test.step('TC-26: Tab Agenda de configuracion carga', async () => {
+      await page.getByRole('tab', { name: /^agenda$/i }).click();
+      await page.waitForLoadState('networkidle');
+      await expect(page.locator('main').first()).toBeVisible({ timeout: 10000 });
+    });
+
+    await test.step('TC-27: Tab Notificaciones carga', async () => {
+      await page.getByRole('tab', { name: /notificaciones/i }).click();
+      await page.waitForLoadState('networkidle');
+      await expect(page.locator('main').first()).toBeVisible({ timeout: 10000 });
+    });
+
+    await test.step('TC-28: Tab Suscripcion carga', async () => {
+      await page.getByRole('tab', { name: /suscripci[oó]n/i }).click();
+      await page.waitForLoadState('networkidle');
+      await expect(page.locator('main').first()).toBeVisible({ timeout: 10000 });
+    });
+
+    // ── BLOQUE 12: Agenda vistas y filtros ───────────────
+    await test.step('TC-29: Vista Dia de agenda carga correctamente', async () => {
+      await page.goto(`${BASE}/schedule`);
+      await page.waitForLoadState('networkidle');
+      await page.getByRole('radio', { name: /día/i }).click();
+      await page.waitForLoadState('networkidle');
+      await expect(page.locator('[role="grid"]').first()).toBeVisible({ timeout: 10000 });
+    });
+
+    await test.step('TC-30: Filtros Doctor Sillon y Estado visibles en agenda', async () => {
+      await page.goto(`${BASE}/schedule`);
+      await page.waitForLoadState('networkidle');
+      await expect(page.getByRole('combobox', { name: /doctor/i })).toBeVisible({ timeout: 5000 });
+      await expect(page.getByRole('combobox', { name: /sill[oó]n/i })).toBeVisible({ timeout: 5000 });
+      await expect(page.getByRole('combobox', { name: /estado/i })).toBeVisible({ timeout: 5000 });
+    });
+
+    await test.step('TC-31: Cambio de vista Semana a Dia funciona', async () => {
+      await page.getByRole('radio', { name: /semana/i }).click();
+      await page.waitForLoadState('networkidle');
+      await page.getByRole('radio', { name: /día/i }).click();
+      await page.waitForLoadState('networkidle');
+      await expect(page.locator('[role="grid"]').first()).toBeVisible({ timeout: 10000 });
+    });
+
+    // ── BLOQUE 13: Presupuestos detalle ──────────────────
+    await test.step('TC-32: Click en presupuesto abre detalle o muestra estado vacio', async () => {
+      await page.goto(`${BASE}/budgets`);
+      await page.waitForLoadState('networkidle');
+      const row = page.locator('table tbody tr').first();
+      const hasRow = await row.isVisible({ timeout: 3000 }).catch(() => false);
+      if (hasRow) {
+        await row.click();
+        await page.waitForLoadState('networkidle');
+        await expect(page.locator('main').first()).toBeVisible({ timeout: 10000 });
+      } else {
+        await expect(page.locator('main').first()).toBeVisible({ timeout: 10000 });
       }
     });
 

@@ -40,7 +40,7 @@ test('Regresiones DentistSystem', async () => {
       await page.goto(`${BASE}/patients`);
       await page.waitForLoadState('networkidle');
       await expect(page).toHaveURL(/patient/);
-      await expect(page.getByText(/pacientes/i).first()).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole('heading', { name: /pacientes/i })).toBeVisible({ timeout: 10000 });
     });
 
     await test.step('TC-03: Buscar paciente por nombre', async () => {
@@ -162,6 +162,37 @@ test('Regresiones DentistSystem', async () => {
       await page.getByRole('button', { name: /nuevo presupuesto/i }).click();
       await expect(page.getByRole('heading', { name: 'Nuevo Presupuesto de Tratamiento' })).toBeVisible({ timeout: 8000 });
       await page.getByRole('button', { name: 'Cancelar' }).click();
+    });
+
+    // ── BLOQUE 8: DEN2-80 Últimos registros ─────────────
+    await test.step('TC-19: Orden Ultimos registros cambia URL correctamente', async () => {
+      await page.setViewportSize({ width: 1280, height: 720 });
+      await page.goto(`${BASE}/patients`);
+      await page.waitForLoadState('networkidle');
+      // Apuntar al combobox adyacente al label "Orden:" para no confundirlo con el de Estado
+      await page.locator('text=Orden:').locator('..').getByRole('combobox').click();
+      await page.getByRole('option', { name: /últimos registros/i }).click();
+      await expect(page).toHaveURL(/sortBy=recentRecords.*sortOrder=desc|sortOrder=desc.*sortBy=recentRecords/);
+    });
+
+    // ── BLOQUE 9: DEN2-74 Dentista asignado ─────────────
+    await test.step('TC-20: Campo dentista asignado aparece en formulario de nuevo paciente', async () => {
+      await page.goto(`${BASE}/patients`);
+      await page.waitForLoadState('networkidle');
+      await page.getByRole('button', { name: /nuevo paciente/i }).click();
+      const dialog = page.locator('[role="dialog"]');
+      await expect(dialog.getByPlaceholder(/buscar dentista/i)).toBeVisible({ timeout: 8000 });
+      await dialog.getByRole('button', { name: 'Cancelar' }).click();
+    });
+
+    // ── BLOQUE 10: DEN2-79 Leyenda de agenda ────────────
+    await test.step('TC-21: Leyenda de agenda contiene todas las especialidades', async () => {
+      await page.goto(`${BASE}/schedule`);
+      await page.waitForLoadState('networkidle');
+      const specialties = ['Diagnóstico', 'Preventivo', 'Restauración', 'Endodoncia', 'Cirugía', 'Prótesis', 'Implantes', 'Estética', 'Ortodoncia'];
+      for (const specialty of specialties) {
+        await expect(page.getByText(new RegExp(specialty, 'i')).first()).toBeVisible({ timeout: 5000 });
+      }
     });
 
     // ── BLOQUE 7: Cierre de sesion (siempre al final) ────

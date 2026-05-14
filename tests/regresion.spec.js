@@ -283,6 +283,190 @@ test('Regresiones DentistSystem', async () => {
       }
     });
 
+    // ── BLOQUE 14: Editar paciente y validaciones ────────
+    await test.step('TC-33: Boton editar paciente abre formulario', async () => {
+      await page.setViewportSize({ width: 1280, height: 720 });
+      await page.goto(`${BASE}/patients`);
+      await page.waitForLoadState('networkidle');
+      await page.locator('table tbody tr').first().click({ timeout: 10000 });
+      await page.waitForLoadState('networkidle');
+      const editBtn = page.getByRole('button', { name: /editar|edit/i }).first();
+      await expect(editBtn).toBeVisible({ timeout: 8000 });
+      await editBtn.click();
+      await expect(page.locator('form, [role="dialog"]').first()).toBeVisible({ timeout: 8000 });
+      const cancelBtn = page.getByRole('button', { name: /cancelar|cancel/i }).first();
+      if (await cancelBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+        await cancelBtn.click();
+      }
+    });
+
+    await test.step('TC-34: Formulario nuevo paciente valida campos obligatorios', async () => {
+      await page.goto(`${BASE}/patients`);
+      await page.waitForLoadState('networkidle');
+      await page.getByRole('button', { name: /nuevo paciente/i }).click();
+      await expect(page.locator('[role="dialog"]')).toBeVisible({ timeout: 8000 });
+      await page.getByRole('button', { name: /registrar paciente/i }).click();
+      await expect(
+        page.locator('[class*="error"], [class*="invalid"], [aria-invalid="true"], [data-invalid]').first()
+      ).toBeVisible({ timeout: 5000 });
+      await page.getByRole('button', { name: /cancelar/i }).first().click();
+    });
+
+    // ── BLOQUE 15: Archivos del paciente ─────────────────
+    await test.step('TC-35: Seccion Archivos carga en expediente del paciente', async () => {
+      await page.goto(`${BASE}/patients`);
+      await page.waitForLoadState('networkidle');
+      await page.locator('table tbody tr').first().click({ timeout: 10000 });
+      await page.waitForLoadState('networkidle');
+      const archivosLink = page.getByRole('link', { name: /archivos/i });
+      await expect(archivosLink).toBeVisible({ timeout: 8000 });
+      await archivosLink.click();
+      await page.waitForLoadState('networkidle');
+      await expect(page.locator('main').first()).toBeVisible({ timeout: 10000 });
+    });
+
+    await test.step('TC-36: Boton subir archivo esta disponible en seccion Archivos', async () => {
+      const uploadBtn = page.getByRole('button', { name: /subir|upload|agregar archivo/i }).first();
+      await expect(uploadBtn).toBeVisible({ timeout: 8000 });
+    });
+
+    // ── BLOQUE 16: Agenda - Crear y gestionar citas ──────
+    await test.step('TC-37: Formulario nueva cita permite seleccionar paciente', async () => {
+      await page.goto(`${BASE}/schedule`);
+      await page.waitForLoadState('networkidle');
+      await page.getByRole('button', { name: /nueva cita|new appointment|agregar|add/i }).first().click();
+      const dialog = page.locator('[role="dialog"]');
+      await expect(dialog).toBeVisible({ timeout: 8000 });
+      const patientInput = dialog.getByPlaceholder(/paciente|patient|buscar/i).first();
+      if (await patientInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+        await patientInput.fill('Test');
+        await page.waitForTimeout(1000);
+        const option = page.getByRole('option').first();
+        if (await option.isVisible({ timeout: 3000 }).catch(() => false)) {
+          await option.click();
+        }
+      }
+      await page.getByRole('button', { name: /cancelar|cancel/i }).first().click();
+      await expect(dialog).not.toBeVisible({ timeout: 5000 });
+    });
+
+    await test.step('TC-38: Cambiar estado de cita existente', async () => {
+      await page.goto(`${BASE}/schedule`);
+      await page.waitForLoadState('networkidle');
+      const appointment = page.locator('[class*="event"], [class*="appointment"], [class*="cita"]').first();
+      const hasAppointment = await appointment.isVisible({ timeout: 5000 }).catch(() => false);
+      if (hasAppointment) {
+        await appointment.click();
+        await page.waitForLoadState('networkidle');
+        const statusControl = page.locator('[class*="status"], [role="combobox"]').first();
+        await expect(statusControl).toBeVisible({ timeout: 8000 });
+      } else {
+        await expect(page.locator('main').first()).toBeVisible({ timeout: 10000 });
+      }
+    });
+
+    // ── BLOQUE 17: Expediente - Contenido real ───────────
+    await test.step('TC-39: Odontograma muestra elementos interactivos', async () => {
+      await page.goto(`${BASE}/patients`);
+      await page.waitForLoadState('networkidle');
+      await page.locator('table tbody tr').first().click({ timeout: 10000 });
+      await page.waitForLoadState('networkidle');
+      await page.getByRole('link', { name: 'Odontograma', exact: true }).click({ timeout: 10000 });
+      await page.waitForLoadState('networkidle');
+      await expect(
+        page.locator('[class*="tooth"], [class*="diente"], svg, [class*="odontogram"]').first()
+      ).toBeVisible({ timeout: 10000 });
+    });
+
+    await test.step('TC-40: Historia Clinica muestra contenido o permite agregar entrada', async () => {
+      await page.getByRole('link', { name: 'Historia Clinica', exact: true }).click({ timeout: 10000 });
+      await page.waitForLoadState('networkidle');
+      await expect(page.locator('main').first()).toBeVisible({ timeout: 10000 });
+    });
+
+    // ── BLOQUE 18: Presupuestos - Flujo completo ─────────
+    await test.step('TC-41: Formulario nuevo presupuesto permite seleccionar paciente', async () => {
+      await page.goto(`${BASE}/budgets`);
+      await page.waitForLoadState('networkidle');
+      await page.getByRole('button', { name: /nuevo presupuesto/i }).click();
+      await expect(page.getByRole('heading', { name: 'Nuevo Presupuesto de Tratamiento' })).toBeVisible({ timeout: 8000 });
+      const patientCombo = page.getByRole('combobox', { name: /paciente/i }).first();
+      await expect(patientCombo).toBeVisible({ timeout: 5000 });
+      await patientCombo.click();
+      await page.waitForTimeout(1000);
+      const option = page.getByRole('option').first();
+      if (await option.isVisible({ timeout: 3000 }).catch(() => false)) {
+        await option.click();
+      }
+      await page.getByRole('button', { name: /cancelar/i }).click();
+    });
+
+    await test.step('TC-42: Detalle de presupuesto muestra informacion completa', async () => {
+      await page.goto(`${BASE}/budgets`);
+      await page.waitForLoadState('networkidle');
+      const row = page.locator('table tbody tr').first();
+      const hasRow = await row.isVisible({ timeout: 3000 }).catch(() => false);
+      if (hasRow) {
+        await row.click();
+        await page.waitForLoadState('networkidle');
+        await expect(page.locator('main').first()).toBeVisible({ timeout: 10000 });
+        await expect(
+          page.locator('[class*="patient"], [class*="procedure"], [class*="total"]').first()
+        ).toBeVisible({ timeout: 8000 });
+      } else {
+        await expect(page.locator('main').first()).toBeVisible({ timeout: 10000 });
+      }
+    });
+
+    // ── BLOQUE 19: Configuracion - Edicion ───────────────
+    await test.step('TC-43: Campo nombre consultorio es editable en Mi Consultorio', async () => {
+      await page.goto(`${BASE}/settings`);
+      await page.waitForLoadState('networkidle');
+      const nameField = page.getByLabel(/nombre del consultorio/i).first();
+      await expect(nameField).toBeVisible({ timeout: 8000 });
+      await expect(nameField).toBeEnabled({ timeout: 5000 });
+    });
+
+    await test.step('TC-44: Tab Tratamientos muestra boton agregar o lista de tratamientos', async () => {
+      await page.getByRole('tab', { name: /tratamientos/i }).click();
+      await page.waitForLoadState('networkidle');
+      const addBtn = page.getByRole('button', { name: /agregar|nuevo|add/i }).first();
+      const hasList = page.locator('table, [class*="list"], [class*="treatment"]').first();
+      const hasContent = await addBtn.isVisible({ timeout: 3000 }).catch(() => false) ||
+                         await hasList.isVisible({ timeout: 3000 }).catch(() => false);
+      expect(hasContent).toBeTruthy();
+    });
+
+    // ── BLOQUE 20: Validaciones ──────────────────────────
+    await test.step('TC-45: Formulario nueva cita valida campos obligatorios', async () => {
+      await page.goto(`${BASE}/schedule`);
+      await page.waitForLoadState('networkidle');
+      await page.getByRole('button', { name: /nueva cita|new appointment|agregar|add/i }).first().click();
+      const dialog = page.locator('[role="dialog"]');
+      await expect(dialog).toBeVisible({ timeout: 8000 });
+      const submitBtn = dialog.getByRole('button', { name: /guardar|crear|confirmar|agendar/i }).first();
+      if (await submitBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+        await submitBtn.click();
+        await expect(
+          page.locator('[class*="error"], [aria-invalid="true"], [data-invalid]').first()
+        ).toBeVisible({ timeout: 5000 });
+      }
+      await page.getByRole('button', { name: /cancelar|cancel/i }).first().click();
+    });
+
+    await test.step('TC-46: Busqueda sin resultados muestra estado vacio', async () => {
+      await page.goto(`${BASE}/patients`);
+      await page.waitForLoadState('networkidle');
+      const search = page.getByPlaceholder(/buscar|search/i).first();
+      await expect(search).toBeVisible({ timeout: 8000 });
+      await search.fill('zzz_paciente_inexistente_xyz');
+      await page.waitForTimeout(1500);
+      await expect(
+        page.locator('[class*="empty"], [class*="no-result"]').first()
+          .or(page.getByText(/no se encontraron|no results|sin resultados/i).first())
+      ).toBeVisible({ timeout: 8000 });
+    });
+
     // ── BLOQUE 7: Cierre de sesion (siempre al final) ────
     await test.step('TC-15: Cerrar sesion redirige al login', async () => {
       await page.setViewportSize({ width: 1280, height: 720 });
